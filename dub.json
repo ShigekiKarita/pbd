@@ -1,0 +1,12 @@
+{
+	"authors": [
+		"Shigeki Karita"
+	],
+	"copyright": "Copyright © 2020, Shigeki Karita",
+	"dependencies": {
+		"pegged": "~>0.4.4"
+	},
+	"description": "A tiny protobuf library.",
+	"license": "BSL-1.0",
+	"name": "dpb"
+}
