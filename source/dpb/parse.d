@@ -51,9 +51,10 @@ Proto:
 `));
 
 
+///
 unittest
 {
-  enum example = `
+  enum exampleProto = `
 /// test test
 syntax = "proto3";
 
@@ -92,10 +93,8 @@ message OpDef {
 }
 `;
 
-  auto tree = Proto(example);
+  auto tree = Proto(exampleProto);
   assert(tree.successful, tree.failMsg);
-  import std.stdio;
-  writeln(tree);
 
   assert(tree.name == "Proto");
 
