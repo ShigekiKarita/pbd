@@ -1,2 +1,2 @@
 /// Protobuf ZigZag encoding.
-module dpb.encode;
+module pbd.encode;

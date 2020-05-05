@@ -1,9 +1,9 @@
 /// Protobuf ZigZag decoding.
-module dpb.decode;
+module pbd.decode;
 
 import std.typecons;
 
-import dpb.codegen : ProtoTag, protoTagOf, protoMemberOf;
+import pbd.codegen : ProtoTag, ProtoArray, pstring, protoTagOf, protoMemberOf;
 
 
 /// Decodes varint and consumes given bytes.
@@ -53,7 +53,8 @@ unittest
 
 T decode(T)(byte[] encoded)
 {
-  import std.traits : isArray;
+  import std.range.primitives : ElementType;
+  import std.traits : isScalarType;
 
   T ret;
   while (encoded.length > 0)
@@ -77,7 +78,8 @@ T decode(T)(byte[] encoded)
         {
           case 0:
             // varint
-            static if (!isArray!Member)
+            // https://developers.google.com/protocol-buffers/docs/encoding#varints
+            static if (isScalarType!Member)
             {
               __traits(getMember, ret, name) = fromVarint!Member(encoded);
               break;
@@ -90,14 +92,21 @@ T decode(T)(byte[] encoded)
             // 64 bit
             break;
           case 2:
-            // length deliminated
-            static if (isArray!Member)
+            // length deliminated i.e., packed
+            // https://developers.google.com/protocol-buffers/docs/encoding#packed
+            static if (is(Member : ProtoArray!T, T))
             {
+              alias E = ElementType!Member;
               auto numBytes = fromVarint!size_t(encoded);
-              auto len = numBytes / typeof(member[0]).sizeof;
-              auto ptr = cast(typeof(member.ptr)) encoded.ptr;
+              auto len = numBytes / E.sizeof;
+              auto ptr = cast(E*) encoded.ptr;
               // TODO(karita): make this nogc?
-              __traits(getMember, ret, name) = ptr[0 .. len].dup;
+              // __traits(getMember, ret, name) ~= ptr[0 .. len].dup;
+              foreach (i; 0 .. len)
+              {
+                __traits(getMember, ret, name).insertBack(ptr[i]);
+              }
+
               encoded = encoded[numBytes .. $];
               break;
             }
@@ -124,7 +133,7 @@ unittest
   {
     @ProtoTag(1) int a;
     @ProtoTag(2) int b;
-    @ProtoTag(3) string c;
+    @ProtoTag(3) pstring c;
   }
 
   byte[] encoded = [
@@ -132,7 +141,5 @@ unittest
       /* tag(2), varint(0) */ 0x10, /* 2 */ 0x02,
       /* tag(3), length-delim */ 0x1a, /* len(3)*/ 03, /* abc */ 0x61, 0x62, 0x63];
   auto foo = decode!Foo(encoded);
-  import std;
-  writeln(foo);
-  assert(foo == Foo(1, 2, "abc"));
+  assert(foo == Foo(1, 2, pstring("abc")));
 }

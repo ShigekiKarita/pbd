@@ -1,0 +1,14 @@
+syntax = 'proto3';
+
+message Foo {
+  message Bar {
+    int32 aa = 1;
+    int32 bb = 2;
+  }
+  int32 a = 1;
+  int32 b = 2;
+  string c = 3;
+  repeated int32 d = 4;
+  repeated Bar e = 5;
+  map<string, int32> f = 6;
+}

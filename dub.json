@@ -8,5 +8,5 @@
 	},
 	"description": "A tiny protobuf library.",
 	"license": "BSL-1.0",
-	"name": "dpb"
+	"name": "pbd"
 }

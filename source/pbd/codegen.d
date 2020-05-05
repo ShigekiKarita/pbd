@@ -1,5 +1,5 @@
 /// Code generation module.
-module dpb.codegen;
+module pbd.codegen;
 
 import std.meta : AliasSeq;
 
@@ -36,14 +36,16 @@ struct ProtoTag
 int protoTagOf(T, string member)()
 {
   alias m = __traits(getMember, T, member);
+  int ret = 0;
   foreach (attr; __traits(getAttributes, m))
   {
-    static if (is(typeof(attr) == ProtoTag))
+    if (is(typeof(attr) == ProtoTag))
     {
-      return attr.tag;
+      ret = attr.tag;
     }
   }
-  assert(false, "@ProtoTag not found: " ~ T.stringof ~ "." ~ member);
+  // assert(false, "@ProtoTag not found: " ~ T.stringof ~ "." ~ member);
+  return ret;
 }
 
 /// Returns a tagged member name corresponding to a given tag.
@@ -89,7 +91,7 @@ string toD(ParseTree p)
 ///
 unittest
 {
-  import dpb.parse : Proto;
+  import pbd.parse : Proto;
 
   enum exampleProto = `
 syntax = "proto3";
@@ -110,4 +112,62 @@ message Foo {
 
   import std.stdio;
   writeln("generated:\n", code);
+}
+
+
+/// Custom array type for pb decoding
+struct ProtoArray(T)
+{
+  import std.container.array : Array;
+
+  Array!T base;
+  alias base this;
+
+  /// Converts to string for debugging
+  string toString() const
+  {
+    import std.conv : text;
+    return this.base[].text;
+  }
+
+  static if (is(T == char))
+  {
+    /// Constructs from string
+    this(string rhs)
+    {
+      this.base.clear();
+      this.base.reserve(rhs.length);
+      foreach (x; rhs)
+      {
+        this.base.insertBack(x);
+      }
+    }
+
+    /// Compares to non-string types
+    bool opEquals(Rhs)(auto ref Rhs rhs)
+    {
+      return this.base == rhs;
+    }
+
+    /// Compares to string
+    @nogc nothrow pure bool opEquals(Rhs : string)(Rhs rhs)
+    {
+      // if (this.length != rhs.length) return false;
+      // foreach (i; 0 .. this.base.length)
+      // {
+      //   if (this.base[i] != rhs[i]) return false;
+      // }
+      // return true;
+      return (&this[0])[0 .. this.length] == rhs;
+    }
+  }
+}
+
+alias pstring = ProtoArray!char;
+
+@nogc nothrow pure
+unittest
+{
+    pstring cs = "abc";
+    assert(cs == "abc");
 }

@@ -1,4 +1,4 @@
-module dpb.parse;
+module pbd.parse;
 
 import pegged.grammar;
 
@@ -20,7 +20,7 @@ Proto:
     Option < :"option" identifier :'=' Value
 
     Message < :"message" identifier :'{'
-                  ((SingleField / RepeatedField / Oneof / Message) :';'?)*
+                  ((SingleField / RepeatedField / Oneof / Map / Message) :';'?)*
               :'}'
 
     SingleField < identifier identifier :'=' Integer
@@ -30,6 +30,8 @@ Proto:
     Oneof < :"oneof" identifier :'{'
                (SingleField :';'?)*
              :'}'
+
+    Map < :"map<" identifier :","  identifier :">" identifier :'=' Integer
 
     Value  <- String
             / Integer
@@ -90,6 +92,8 @@ message OpDef {
     string name = 4;
     string sub_message = 9; //test
   };
+
+  map<string, int32> str2int = 5;
 }
 `;
 
@@ -174,4 +178,9 @@ message OpDef {
   auto oneofField1 = oneof.children[1];
   assert(oneofField1.name == "Proto.SingleField");
   assert(oneofField1.matches == ["string", "sub_message", "9"]);
+
+  //   map<string, int32> str2int = 5;
+  auto map = message.children[4];
+  assert(map.name == "Proto.Map");
+  assert(map.matches == ["string", "int32", "str2int", "5"]);
 }
