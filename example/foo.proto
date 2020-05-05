@@ -6,7 +6,7 @@ message Foo {
     int32 bb = 2;
   }
   int32 a = 1;
-  int32 b = 2;
+  sint32 b = 2;
   string c = 3;
   repeated int32 d = 4;
   repeated Bar e = 5;

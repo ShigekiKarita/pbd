@@ -5,10 +5,18 @@ import std.typecons;
 
 import pbd.codegen : ProtoTag, ProtoArray, pstring, protoTagOf, protoMemberOf;
 
+struct VarintElem
+{
+  import std.bitmanip : bitfields;
+
+  mixin(bitfields!(
+      byte, "i", 7,
+      bool, "cont", 1));
+}
 
 /// Decodes varint and consumes given bytes.
 @trusted
-T fromVarint(T)(scope ref byte[] encoded)
+T fromVarint(T)(scope ref ubyte[] encoded)
 {
   import std.bitmanip : BitArray;
 
@@ -30,31 +38,49 @@ T fromVarint(T)(scope ref byte[] encoded)
     {
       // Consumes bytes.
       encoded = encoded[adv + 1 .. $];
+      // two's complement = ones' complement + 1
+      if (val < 0) val += 1;
       return val;
     }
   }
   assert(false, "no sentinel found");
 }
 
+/// Reverts a given zigzag-encoded ((n << 1) ^ (n >> (T.sizeof * 8 - 1)))
+/// unsigned value to signed.
+T fromZigzag(T)(T n)
+{
+  return (n >> 1) ^ (-(n & 1));
+}
+
 /// Varint examples.
-pure nothrow @safe
+// pure nothrow @safe
 unittest
 {
-  byte[] b1 = [cast(byte) 0b0000_0001];
+  ubyte[] b1 = [0b0000_0001];
   assert(fromVarint!int(b1) == 1);
 
-  byte[] b128 = [cast(byte) 0b1000_0000, 0b0000_0001];
+  ubyte[] b128 = [0b1000_0000, 0b0000_0001];
   assert(fromVarint!int(b128) == 128);
 
-  byte[] b300 = [cast(byte) 0b1010_1100, 0b0000_0010];
+  ubyte[] b300 = [0b1010_1100, 0b0000_0010];
   assert(fromVarint!int(b300) == 300);
+
+  ubyte[] bneg1 = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01];
+  assert(-1 == fromVarint!int(bneg1));
+
+  ubyte[] bneg1_sint = [0x01];
+  assert(-1 == fromVarint!int(bneg1_sint).fromZigzag);
+
+  ubyte[] b1_sint = [0x02];
+  assert(1 == fromVarint!int(b1_sint).fromZigzag);
 }
 
 
-T decode(T)(byte[] encoded)
+T decode(T)(ubyte[] encoded)
 {
   import std.range.primitives : ElementType;
-  import std.traits : isScalarType;
+  import std.traits : isScalarType, hasUDA;
 
   T ret;
   while (encoded.length > 0)
@@ -69,7 +95,7 @@ T decode(T)(byte[] encoded)
     encoded = encoded[1 .. $];
     static foreach (name; __traits(allMembers, T))
     {
-      if (protoTagOf!(T, name) == tag)
+      if (hasUDA!(__traits(getMember, ret, name), ProtoTag) && protoTagOf!(T, name) == tag)
       {
         // writeln(name);
         alias member = __traits(getMember, ret, name);
@@ -136,10 +162,11 @@ unittest
     @ProtoTag(3) pstring c;
   }
 
-  byte[] encoded = [
+  ubyte[] encoded = [
       /* tag(1), varint(0) */ 0x08, /* 1 */ 0x01,
       /* tag(2), varint(0) */ 0x10, /* 2 */ 0x02,
       /* tag(3), length-delim */ 0x1a, /* len(3)*/ 03, /* abc */ 0x61, 0x62, 0x63];
   auto foo = decode!Foo(encoded);
   assert(foo == Foo(1, 2, pstring("abc")));
 }
+
