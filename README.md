@@ -1,8 +1,13 @@
-# dpb: protobuf for D
+# pbd: protobuf for D
+
+![CI](https://github.com/ShigekiKarita/pbd/workflows/CI/badge.svg)
+[![codecov](https://codecov.io/gh/ShigekiKarita/tfd/branch/master/graph/badge.svg)](https://codecov.io/gh/ShigekiKarita/pbd)
 
 ## Features
 
-- [x] basic scalar types codegen/parser/decoder
+- [x] parser
+- [x] basic scalar decoder
+- [x] basic scalar codegen
 - [ ] repeated
 - [ ] oneof
 - [ ] enum (varint)
