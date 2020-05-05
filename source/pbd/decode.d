@@ -3,7 +3,7 @@ module pbd.decode;
 
 import std.typecons;
 
-import pbd.codegen : ProtoTag, ProtoArray, pstring, protoTagOf, protoMemberOf;
+import pbd.codegen : ProtoTag, ProtoArray, pstring, protoTagOf, protoMemberOf, isZigZag, ZigZag;
 
 struct VarintElem
 {
@@ -95,7 +95,8 @@ T decode(T)(ubyte[] encoded)
     encoded = encoded[1 .. $];
     static foreach (name; __traits(allMembers, T))
     {
-      if (hasUDA!(__traits(getMember, ret, name), ProtoTag) && protoTagOf!(T, name) == tag)
+      static if (hasUDA!(__traits(getMember, ret, name), ProtoTag))
+        if(protoTagOf!(T, name) == tag)
       {
         // writeln(name);
         alias member = __traits(getMember, ret, name);
@@ -107,7 +108,14 @@ T decode(T)(ubyte[] encoded)
             // https://developers.google.com/protocol-buffers/docs/encoding#varints
             static if (isScalarType!Member)
             {
-              __traits(getMember, ret, name) = fromVarint!Member(encoded);
+              static if (isZigZag!(T, name))
+              {
+                __traits(getMember, ret, name) = fromVarint!Member(encoded).fromZigzag;
+              }
+              else
+              {
+                __traits(getMember, ret, name) = fromVarint!Member(encoded);
+              }
               break;
             }
             else
@@ -158,15 +166,15 @@ unittest
   struct Foo
   {
     @ProtoTag(1) int a;
-    @ProtoTag(2) int b;
+    @ZigZag @ProtoTag(2) int b;
     @ProtoTag(3) pstring c;
   }
 
   ubyte[] encoded = [
       /* tag(1), varint(0) */ 0x08, /* 1 */ 0x01,
-      /* tag(2), varint(0) */ 0x10, /* 2 */ 0x02,
+      /* tag(2), varint(0) */ 0x10, /* 1 but -1 in zigzag */ 0x01,
       /* tag(3), length-delim */ 0x1a, /* len(3)*/ 03, /* abc */ 0x61, 0x62, 0x63];
   auto foo = decode!Foo(encoded);
-  assert(foo == Foo(1, 2, pstring("abc")));
+  assert(foo == Foo(1, -1, pstring("abc")));
 }
 

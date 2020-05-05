@@ -29,23 +29,25 @@ enum Proto2D = [
 struct ProtoTag
 {
   /// Tag number for encoding/decoding
-  int tag;
+  int tag = 0;
 }
 
 /// Returns tag of a given member or 0 if not found.
 int protoTagOf(T, string member)()
 {
-  alias m = __traits(getMember, T, member);
-  int ret = 0;
-  foreach (attr; __traits(getAttributes, m))
-  {
-    if (is(typeof(attr) == ProtoTag))
-    {
-      ret = attr.tag;
-    }
-  }
-  // assert(false, "@ProtoTag not found: " ~ T.stringof ~ "." ~ member);
-  return ret;
+  import std.traits : getUDAs;
+  enum udas = getUDAs!(__traits(getMember, T, member), ProtoTag);
+  static assert(udas.length == 1);
+  return udas[0].tag;
+}
+
+struct ZigZag {};
+
+/// Returns true if member is zigzag encoded.
+bool isZigZag(T, string member)()
+{
+  import std.traits : hasUDA;
+  return hasUDA!(__traits(getMember, T, member), ZigZag);
 }
 
 /// Returns a tagged member name corresponding to a given tag.
@@ -75,13 +77,17 @@ unittest
   {
     @ProtoTag(2)
     int i;
+    @ZigZag
     @ProtoTag(1)
     int j;
   }
 
   static assert(protoTagOf!(Test, "i") == 2);
+  static assert(!isZigZag!(Test, "i"));
   static assert(protoMemberOf!Test(2) == "i");
+  static assert(isZigZag!(Test, "j"));
 }
+
 /// Generates D code from Protobuf IDL ParseTree (Proto result).
 string toD(ParseTree p)
 {
