@@ -71,6 +71,7 @@ string protoMemberOf(T)(int tag)
 }
 
 ///
+version (pbd_test)
 unittest
 {
   struct Test
@@ -171,6 +172,7 @@ struct ProtoArray(T)
 
 alias pstring = ProtoArray!char;
 
+version (pbd_test)
 @nogc nothrow pure
 unittest
 {

@@ -1,12 +1,19 @@
 {
-	"authors": [
-		"Shigeki Karita"
-	],
-	"copyright": "Copyright © 2020, Shigeki Karita",
-	"dependencies": {
-		"pegged": "~>0.4.4"
-	},
-	"description": "A tiny protobuf library.",
-	"license": "BSL-1.0",
-	"name": "pbd"
+    "authors": [
+        "Shigeki Karita"
+    ],
+    "copyright": "Copyright © 2020, Shigeki Karita",
+    "dependencies": {
+        "pegged": "~>0.4.4"
+    },
+    "description": "A tiny protobuf library.",
+    "license": "BSL-1.0",
+    "name": "pbd",
+    "buildTypes": {
+        "unittest": {
+            "buildOptions": ["unittests", "debugMode", "debugInfo"],
+            "versions": ["pbd_test"],
+            "dflags": ["-preview=dip1000", "-preview=dip1008"]
+        }
+    }
 }

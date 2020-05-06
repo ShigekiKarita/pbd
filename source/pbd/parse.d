@@ -6,7 +6,7 @@ mixin(grammar(`
 Proto:
     Root < Syntax?  :';'?
            Package? :';'?
-           ((Import / Option / Message) :';'?)*
+           ((Import / Option / Enum / Message) :';'?)*
 
     Spacing <~ (space / endOfLine / Comment)*
     Comment <~ "//" (!endOfLine .)* endOfLine
@@ -19,13 +19,20 @@ Proto:
 
     Option < :"option" identifier :'=' Value
 
+    Enum < :"enum" identifier :'{'
+               (EnumField :';'?)*
+           :'}'
+
+    EnumField < identifier :'=' Integer
+
     Message < :"message" identifier :'{'
-                  ((SingleField / RepeatedField / Oneof / Map / Message) :';'?)*
+                  ((SingleField / RepeatedField / Oneof / Map / Enum / Message) :';'?)*
               :'}'
 
     SingleField < identifier identifier :'=' Integer
 
     RepeatedField < :"repeated" identifier identifier :'=' Integer
+                    (:'[' "packed" :'=' Bool :']')?
 
     Oneof < :"oneof" identifier :'{'
                (SingleField :';'?)*
@@ -35,11 +42,9 @@ Proto:
 
     Value  <- String
             / Integer
-            / True
-            / False
+            / Bool
 
-    True   <- "true"
-    False  <- "false"
+    Bool   <- "true" / "false"
 
     String <~ :doublequote Char* :doublequote
     Char   <~ backslash doublequote
@@ -54,6 +59,7 @@ Proto:
 
 
 ///
+version (pbd_test)
 unittest
 {
   enum exampleProto = `
@@ -86,7 +92,7 @@ message OpDef {
     string description = 2;
   };
 
-  repeated AttrDef attr = 4; // test
+  repeated AttrDef attr = 4 [packed = true]; // test
 
   oneof test_oneof {
     string name = 4;
@@ -94,6 +100,21 @@ message OpDef {
   };
 
   map<string, int32> str2int = 5;
+
+  enum Visibility {
+    // Normally this is "VISIBLE" unless you are inheriting a
+    // different value from another ApiDef.
+    DEFAULT_VISIBILITY = 0;
+    // Publicly visible in the API.
+    VISIBLE = 1;
+    // Do not include this op in the generated API. If visibility is
+    // set to 'SKIP', other fields are ignored for this op.
+    SKIP = 2;
+    // Hide this op by putting it into an internal namespace (or whatever
+    // is appropriate in the target language).
+    HIDDEN = 3;
+  }
+  Visibility visibility = 2;
 }
 `;
 
@@ -120,7 +141,7 @@ message OpDef {
   assert(option0.name == "Proto.Option");
   assert(option0.matches == ["cc_enable_arenas", "true"]);
   assert(option0.children[0].name == "Proto.Value");
-  assert(option0.children[0].children[0].name == "Proto.True");
+  assert(option0.children[0].children[0].name == "Proto.Bool");
 
   // option java_outer_classname = "OpDefProtos";
   auto option1 = root.children[3];
@@ -162,7 +183,7 @@ message OpDef {
   //   repeated AttrDef attr = 4; // test
   auto repeated = message.children[2];
   assert(repeated.name == "Proto.RepeatedField");
-  assert(repeated.matches == ["AttrDef", "attr", "4"]);
+  assert(repeated.matches == ["AttrDef", "attr", "4", "packed", "true"]);
 
   //   oneof test_oneof {
   auto oneof = message.children[3];
@@ -183,4 +204,17 @@ message OpDef {
   auto map = message.children[4];
   assert(map.name == "Proto.Map");
   assert(map.matches == ["string", "int32", "str2int", "5"]);
+
+  //   enum Visibility
+  auto enumDecl = message.children[5];
+  assert(enumDecl.name == "Proto.Enum");
+  assert(enumDecl.matches == [
+      "Visibility",
+      "DEFAULT_VISIBILITY", "0",
+      "VISIBLE", "1",
+      "SKIP", "2",
+      "HIDDEN", "3"]);
+  auto enumField0 = enumDecl.children[0];
+  assert(enumField0.name == "Proto.EnumField");
+  assert(enumField0.matches == ["DEFAULT_VISIBILITY", "0"]);
 }

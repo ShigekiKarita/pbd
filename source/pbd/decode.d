@@ -15,7 +15,6 @@ struct VarintElem
 }
 
 /// Decodes varint and consumes given bytes.
-@trusted
 T fromVarint(T)(scope ref ubyte[] encoded)
 {
   import std.bitmanip : BitArray;
@@ -25,7 +24,7 @@ T fromVarint(T)(scope ref ubyte[] encoded)
   foreach (adv, b; encoded)
   {
     // This pointer should be valid.
-    immutable ba = BitArray((&b)[0 .. 1], 8);
+    const ba = BitArray((&b)[0 .. 1], 8);
     static foreach (i; 0 .. 7)
     {
       // Decodes bit to integer.
@@ -54,7 +53,8 @@ T fromZigzag(T)(T n)
 }
 
 /// Varint examples.
-// pure nothrow @safe
+version (pbd_test)
+pure nothrow
 unittest
 {
   ubyte[] b1 = [0b0000_0001];
@@ -161,6 +161,8 @@ T decode(T)(ubyte[] encoded)
 }
 
 ///
+version (pbd_test)
+pure nothrow
 unittest
 {
   struct Foo

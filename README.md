@@ -5,12 +5,15 @@
 
 ## Features
 
-- [x] parser
+- [x] proto3 parser
 - [x] basic scalar decoder
 - [x] basic scalar codegen
 - [ ] repeated
 - [ ] oneof
-- [ ] enum (varint)
+- [ ] enum
 - [ ] map
 - [ ] nest
+- [ ] import
 - [ ] encoder
+- [ ] proto2 parser
+
