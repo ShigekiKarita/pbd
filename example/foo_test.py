@@ -23,6 +23,6 @@ print(foo)
 print(foo.SerializeToString())
 
 
-foo = Foo(f={'aa': 1, 'bb': 2})
-print(foo)
-print(foo.SerializeToString())
+# foo = Foo(f={'aa': 1, 'bb': 2})
+# print(foo)
+# print(foo.SerializeToString())

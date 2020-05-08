@@ -11,3 +11,7 @@ echo "testing tensorflow/core/framework"
 protoc --python_out=. tensorflow/core/framework/*.proto
 python3 tf_test.py
 
+echo "testing server/client using protobuf."
+python3 foo_server.py &
+./foo_client.d
+

@@ -8,22 +8,22 @@ import pegged.grammar : ParseTree;
 
 /// string dict converts Proto types to D types
 /// See also: https://developers.google.com/protocol-buffers/docs/proto#scalar
-enum Proto2D = [
+enum Proto2DTypes = [
     "double": "double",
     "float": "float",
     "int32": "int",
     "int64": "long",
     "uint32": "uint",
     "uint64": "ulong",
-    "sint32": "int",
-    "sint64": "long",
+    "sint32": "@ZigZag int",
+    "sint64": "@ZigZag long",
     "fixed32": "uint",
     "fixed64": "ulong",
     "sfixed32": "int",
     "sfixed64": "long",
     "bool": "bool",
-    "string": "string",
-    "bytes": "byte[]",
+    "string": "ProtoArray!char",
+    "bytes": "ProtoArray!byte",
 ];
 
 struct ProtoTag
@@ -42,6 +42,7 @@ int protoTagOf(T, string member)()
 }
 
 struct ZigZag {};
+struct Unpacked {};
 
 /// Returns true if member is zigzag encoded.
 bool isZigZag(T, string member)()
@@ -90,14 +91,61 @@ unittest
 }
 
 /// Generates D code from Protobuf IDL ParseTree (Proto result).
-string toD(ParseTree p)
+string toD(ParseTree p, int numIndent = 0, string indent = "  ")
 {
-  return "";
+  import std.range : repeat, join;
+
+  auto spaces = indent.repeat(numIndent).join;
+  switch (p.name)
+  {
+    case "Proto":
+      assert(p.children.length == 1, "Proto should have only one child.");
+      return "import pbd.codegen;\n" ~ toD(p.children[0], numIndent, indent);
+    case "Proto.Root":
+      string code;
+      foreach (child; p.children)
+      {
+        code ~= toD(child, numIndent, indent);
+      }
+      return code;
+    case "Proto.Syntax":
+      assert(p.matches[0] == "proto3", `only syntax = "proto3" is supported.`);
+      return "";
+    case "Proto.Package":
+      // TODO(karita): support package?
+      return "";
+    case "Proto.Option":
+      // TODO(karita): support option?
+      return "";
+    case "Proto.Message":
+      string code = spaces ~ "struct " ~ p.matches[0] ~ " {\n";
+      foreach (child; p.children)
+      {
+        code ~= toD(child, numIndent + 1, indent);
+      }
+      code ~= spaces ~ "}\n";
+      return code;
+    case "Proto.SingleField":
+      // e.g., int32 a = 1;
+      auto type = Proto2DTypes[p.matches[0]];
+      auto name = p.matches[1];
+      auto tag = "@ProtoTag(" ~ p.matches[2] ~ ") ";
+      // [packed = true];
+      auto packed = p.matches.length == 3 ||
+                    (p.matches[3] == "packed" && p.matches[4] == "true")
+                    ? "" : "@Unpacked ";
+      return spaces ~ packed ~ tag ~ type ~ " " ~ name ~ ";\n";
+    default:
+      assert(false, p.name ~ " unsupported");
+  }
 }
 
 ///
+version (pbd_test)
+@nogc nothrow pure @safe
 unittest
 {
+  import std.stdio;
   import pbd.parse : Proto;
 
   enum exampleProto = `
@@ -107,18 +155,29 @@ package tensorflow;
 
 message Foo {
   int32 aa = 1;
-  int32 bb = 2;
+  sint32 bb = 2;
 }
 `;
 
+  // example of generated code
+  import pbd.codegen;
   struct ExpectedFoo {
-    int aa;
+    @ProtoTag(1) int aa;
+    @ZigZag @ProtoTag(2) int bb;
   }
 
-  enum code = Proto(exampleProto).toD;
+  enum tree = Proto(exampleProto);
+  enum code = tree.toD(0, "  ");
+  mixin(code);
 
-  import std.stdio;
-  writeln("generated:\n", code);
+  static assert(is(typeof(Foo.aa) == int));
+  static assert(protoTagOf!(Foo, "aa") == 1);
+  static assert(!isZigZag!(Foo, "aa"));
+
+  static assert(is(typeof(Foo.bb) == int));
+  static assert(protoTagOf!(Foo, "bb") == 2);
+  static assert(isZigZag!(Foo, "bb"));
+  // writeln("generated:\n", code);
 }
 
 
@@ -178,4 +237,10 @@ unittest
 {
     pstring cs = "abc";
     assert(cs == "abc");
+}
+
+auto ProtoToD(string path)()
+{
+  import pbd.parse : Proto;
+  return Proto(import(path)).toD;
 }
